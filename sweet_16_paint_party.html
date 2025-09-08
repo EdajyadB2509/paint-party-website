@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sweet 16 Paint Party</title>
+    <!-- Use the Caveat font from Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&display=swap" rel="stylesheet">
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Caveat', cursive;
+            background-color: #F8FAFC; /* A very light gray-blue fallback */
+            /* Note: The OneDrive URL below may not work due to security restrictions. */
+            background-image: url('https://1drv.ms/i/c/1a9fae9d811058f3/ESF1uhf_yfVAqDeekAEkx5UBtskMSKGGhjuXnARGzf6ggw?e=vAK4iG');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            position: relative;
+            z-index: 1;
+        }
+        body::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.2); /* Semi-transparent black overlay */
+            z-index: -1;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            position: relative;
+            z-index: 2;
+        }
+        .card {
+            background-color: white;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            padding: 2rem;
+        }
+        .card-image-container {
+            position: relative;
+            padding-top: 56.25%; /* 16:9 Aspect Ratio */
+        }
+        .card-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 0.75rem;
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <div class="container">
+        <!-- Header Section -->
+        <header class="text-center py-10">
+            <h1 class="text-4xl sm:text-5xl font-bold text-pink-500 mb-2">Welcome to Jade's Sweet 16 Paint Party!</h1>
+            <p class="text-lg sm:text-xl text-gray-600">Get ready to get creative and have some fun!</p>
+        </header>
+
+        <!-- Image Gallery Section -->
+        <section class="py-8">
+            <h2 class="text-3xl font-bold text-gray-800 text-center mb-6">Step-by-step Tutorials</h2>
+            <p class="text-center text-gray-600 mb-8">Follow these step-by-step tutorials to create your unique masterpiece! Just click on a photo to see it larger.</p>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="overflow-hidden rounded-lg shadow-md transition-transform duration-300 hover:scale-105">
+                    <img src="https://imgur.com/a/eZmWX2O" alt="Spring Flowers Tutorial" class="w-full h-auto">
+                </div>
+                <div class="overflow-hidden rounded-lg shadow-md transition-transform duration-300 hover:scale-105">
+                    <img src="https://placehold.co/600x600/C1E1C1/374151?text=Landscape" alt="Landscape Painting Inspiration" class="w-full h-auto">
+                </div>
+                <div class="overflow-hidden rounded-lg shadow-md transition-transform duration-300 hover:scale-105">
+                    <img src="https://placehold.co/600x600/E5A8E5/374151?text=Abstract" alt="Abstract Painting Inspiration" class="w-full h-auto">
+                </div>
+                <div class="overflow-hidden rounded-lg shadow-md transition-transform duration-300 hover:scale-105">
+                    <img src="https://placehold.co/600x600/F4C2C2/374151?text=Still+Life" alt="Still Life Painting Inspiration" class="w-full h-auto">
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Content Section - Tutorials -->
+        <main class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <h2 class="text-3xl font-bold text-gray-800 text-center mb-6 col-span-full">YouTube Tutorials</h2>
+            <!-- Tutorial Card 1 -->
+            <a href="https://www.google.com/search?q=youtube+paint+tutorial+shorts&rlz=1C1ONGR_enUS1078US1078&oq=youtube+paint+tutorial+shorts&gs_lcrp=EgZjaHJvbWUyBggAEEUYOTIHCAEQIRigATIHCAIQIRigATIHCAMQIRigATIHCAQQIRigATIHCAUQIRigATIHCAYQIRifBTIHCAcQIRiPAtIBCTEzMTE4ajBqN6gCALACAA&sourceid=chrome&ie=UTF-8#fpstate=ive&vld=cid:5b4ccc53,vid:mRJTGK7vzHk,st:0" target="_blank" class="block">
+                <div class="card transform transition-transform duration-300 hover:scale-105">
+                    <div class="card-image-container mb-4">
+                        <img src="https://placehold.co/600x400/d1d5db/374151?text=Calm+Moonlight" alt="Calm Moonlight Painting Tutorial" class="card-image">
+                    </div>
+                    <div class="text-center">
+                        <h2 class="text-xl font-semibold text-gray-900 mb-2">Calm Moonlight Painting</h2>
+                        <p class="text-sm text-gray-500">Watch the tutorial on YouTube.</p>
+                    </div>
+                </div>
+            </a>
+
+            <!-- Tutorial Card 2 -->
+            <a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" target="_blank" class="block">
+                <div class="card transform transition-transform duration-300 hover:scale-105">
+                    <div class="card-image-container mb-4">
+                        <img src="https://placehold.co/600x400/9ca3af/1f2937?text=Sunset+Horizon" alt="Sunset Horizon Painting Tutorial" class="card-image">
+                    </div>
+                    <div class="text-center">
+                        <h2 class="text-xl font-semibold text-gray-900 mb-2">Colorful Sunset Horizon</h2>
+                        <p class="text-sm text-gray-500">Watch the tutorial on YouTube.</p>
+                    </div>
+                </div>
+            </a>
+
+            <!-- Tutorial Card 3 -->
+            <a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" target="_blank" class="block">
+                <div class="card transform transition-transform duration-300 hover:scale-105">
+                    <div class="card-image-container mb-4">
+                        <img src="https://placehold.co/600x400/6b7280/f3f4f6?text=Galaxy+Scene" alt="Galaxy Scene Painting Tutorial" class="card-image">
+                    </div>
+                    <div class="text-center">
+                        <h2 class="text-xl font-semibold text-gray-900 mb-2">Sparkling Galaxy Scene</h2>
+                        <p class="text-sm text-gray-500">Watch the tutorial on YouTube.</p>
+                    </div>
+                </div>
+            </a>
+
+            <!-- Tutorial Card 4 -->
+            <a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" target="_blank" class="block">
+                <div class="card transform transition-transform duration-300 hover:scale-105">
+                    <div class="card-image-container mb-4">
+                        <img src="https://placehold.co/600x400/4b5563/d1d5db?text=Abstract+Swirls" alt="Abstract Swirls Painting Tutorial" class="card-image">
+                    </div>
+                    <div class="text-center">
+                        <h2 class="text-xl font-semibold text-gray-900 mb-2">Modern Abstract Swirls</h2>
+                        <p class="text-sm text-gray-500">Watch the tutorial on YouTube.</p>
+                    </div>
+                </div>
+            </a>
+            
+            <!-- Tutorial Card 5 -->
+            <a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" target="_blank" class="block">
+                <div class="card transform transition-transform duration-300 hover:scale-105">
+                    <div class="card-image-container mb-4">
+                        <img src="https://placehold.co/600x400/374151/9ca3af?text=Cute+Animals" alt="Cute Animals Painting Tutorial" class="card-image">
+                    </div>
+                    <div class="text-center">
+                        <h2 class="text-xl font-semibold text-gray-900 mb-2">Painting Cute Animals</h2>
+                        <p class="text-sm text-gray-500">Watch the tutorial on YouTube.</p>
+                    </div>
+                </div>
+            </a>
+            
+            <!-- Tutorial Card 6 -->
+            <a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" target="_blank" class="block">
+                <div class="card transform transition-transform duration-300 hover:scale-105">
+                    <div class="card-image-container mb-4">
+                        <img src="https://placehold.co/600x400/1f2937/d1d5db?text=Monogram+Art" alt="Monogram Art Painting Tutorial" class="card-image">
+                    </div>
+                    <div class="text-center">
+                        <h2 class="text-xl font-semibold text-gray-900 mb-2">Personalized Monogram Art</h2>
+                        <p class="text-sm text-gray-500">Watch the tutorial on YouTube.</p>
+                    </div>
+                </div>
+            </a>
+
+        </main>
+        
+        <!-- Footer Section -->
+        <footer class="text-center py-10 mt-8">
+            <p class="text-md text-gray-600">Thanks for celebrating with us! Can't wait to see your masterpiece.</p>
+        </footer>
+    </div>
+
+</body>
+</html>
