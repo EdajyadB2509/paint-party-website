@@ -12,7 +12,6 @@
         body {
             font-family: 'Caveat', cursive;
             background-color: #F8FAFC; /* A very light gray-blue fallback */
-            /* Note: The OneDrive URL below may not work due to security restrictions. */
             background-image: url('Jade background.png');
             background-size: cover;
             background-position: center;
@@ -56,6 +55,25 @@
             object-fit: cover;
             border-radius: 0.75rem;
         }
+        /* Lightbox styles */
+        .lightbox-modal {
+          display: none;
+          position: fixed; 
+          z-index: 1000; 
+          left: 0; top: 0;
+          width: 100vw; height: 100vh;
+          background: rgba(0,0,0,0.8);
+          justify-content: center; align-items: center;
+        }
+        .lightbox-modal img {
+          max-width: 90vw;
+          max-height: 90vh;
+          border-radius: 12px;
+          box-shadow: 0 2px 20px #000a;
+        }
+        .lightbox-modal.active {
+          display: flex;
+        }
     </style>
 </head>
 <body class="text-gray-800">
@@ -73,43 +91,43 @@
             <p class="text-center text-gray-600 mb-8">Follow these step-by-step tutorials to create your unique masterpiece! Just click on a photo to see it larger.</p>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div class="overflow-hidden rounded-lg shadow-md transition-transform duration-300 hover:scale-105">
-                    <img src="Flamingo Tutorial.png" alt="Flamingo Tutorial" class="w-full h-auto">
+                    <img src="Flamingo Tutorial.png" alt="Flamingo Tutorial" class="w-full h-auto" onclick="openLightbox(this.src)" style="cursor:pointer">
                 </div>
                 <div class="overflow-hidden rounded-lg shadow-md transition-transform duration-300 hover:scale-105">
-                    <img src="Spring Flowers Tutorial.png" alt="Spring Flowers Tutorial" class="w-full h-auto">
+                    <img src="Spring Flowers Tutorial.png" alt="Spring Flowers Tutorial" class="w-full h-auto" onclick="openLightbox(this.src)" style="cursor:pointer">
                 </div>
                 <div class="overflow-hidden rounded-lg shadow-md transition-transform duration-300 hover:scale-105">
-                    <img src="Jack Skellington.png" alt="Jack Skellingon Tutorial" class="w-full h-auto">
+                    <img src="Jack Skellington.png" alt="Jack Skellingon Tutorial" class="w-full h-auto" onclick="openLightbox(this.src)" style="cursor:pointer">
                 </div>
                 <div class="overflow-hidden rounded-lg shadow-md transition-transform duration-300 hover:scale-105">
-                    <img src="Cute Panda.png" alt="Cute Panda Tutorial" class="w-full h-auto">
+                    <img src="Cute Panda.png" alt="Cute Panda Tutorial" class="w-full h-auto" onclick="openLightbox(this.src)" style="cursor:pointer">
                 </div>
                 <div class="overflow-hidden rounded-lg shadow-md transition-transform duration-300 hover:scale-105">
-                    <img src="Wilbur.png" alt="Wilbur Tutorial" class="w-full h-auto">
+                    <img src="Wilbur.png" alt="Wilbur Tutorial" class="w-full h-auto" onclick="openLightbox(this.src)" style="cursor:pointer">
                 </div>
                 <div class="overflow-hidden rounded-lg shadow-md transition-transform duration-300 hover:scale-105">
-                    <img src="Desert Cactus.png" alt="Desert Cactus Tutorial" class="w-full h-auto">
+                    <img src="Desert Cactus.png" alt="Desert Cactus Tutorial" class="w-full h-auto" onclick="openLightbox(this.src)" style="cursor:pointer">
                 </div>
                 <div class="overflow-hidden rounded-lg shadow-md transition-transform duration-300 hover:scale-105">
-                    <img src="Tulips.png" alt="Tulips Tutorial" class="w-full h-auto">
+                    <img src="Tulips.png" alt="Tulips Tutorial" class="w-full h-auto" onclick="openLightbox(this.src)" style="cursor:pointer">
                 </div>
                 <div class="overflow-hidden rounded-lg shadow-md transition-transform duration-300 hover:scale-105">
-                    <img src="Wilbur.png" alt="Wilbur Tutorial" class="w-full h-auto">
+                    <img src="Wilbur.png" alt="Wilbur Tutorial" class="w-full h-auto" onclick="openLightbox(this.src)" style="cursor:pointer">
                 </div>
                  <div class="overflow-hidden rounded-lg shadow-md transition-transform duration-300 hover:scale-105">
-                    <img src="Watermelon Tutorial.png" alt="Watermelon Tutorial" class="w-full h-auto">
+                    <img src="Watermelon Tutorial.png" alt="Watermelon Tutorial" class="w-full h-auto" onclick="openLightbox(this.src)" style="cursor:pointer">
                 </div>
                 <div class="overflow-hidden rounded-lg shadow-md transition-transform duration-300 hover:scale-105">
-                    <img src="Dandelion Wishes.png" alt="Dandelion Tutorial" class="w-full h-auto">
+                    <img src="Dandelion Wishes.png" alt="Dandelion Tutorial" class="w-full h-auto" onclick="openLightbox(this.src)" style="cursor:pointer">
                 </div>
                 <div class="overflow-hidden rounded-lg shadow-md transition-transform duration-300 hover:scale-105">
-                    <img src="Balloon on a String.png" alt="Balloon Tutorial" class="w-full h-auto">
+                    <img src="Balloon on a String.png" alt="Balloon Tutorial" class="w-full h-auto" onclick="openLightbox(this.src)" style="cursor:pointer">
                 </div>
                 <div class="overflow-hidden rounded-lg shadow-md transition-transform duration-300 hover:scale-105">
-                    <img src="Sunset Pier.png" alt="Sunset Pier Tutorial" class="w-full h-auto">
+                    <img src="Sunset Pier.png" alt="Sunset Pier Tutorial" class="w-full h-auto" onclick="openLightbox(this.src)" style="cursor:pointer">
                 </div>
                 <div class="overflow-hidden rounded-lg shadow-md transition-transform duration-300 hover:scale-105">
-                    <img src="Haunted House.png" alt="Haunted House Tutorial" class="w-full h-auto">
+                    <img src="Haunted House.png" alt="Haunted House Tutorial" class="w-full h-auto" onclick="openLightbox(this.src)" style="cursor:pointer">
                 </div>
             </div>
         </section>
@@ -121,7 +139,7 @@
             <a href="https://www.google.com/search?q=youtube+paint+tutorial+shorts&rlz=1C1ONGR_enUS1078US1078&oq=youtube+paint+tutorial+shorts&gs_lcrp=EgZjaHJvbWUyBggAEEUYOTIHCAEQIRigATIHCAIQIRigA" target="_blank" class="block">
                 <div class="card transform transition-transform duration-300 hover:scale-105">
                     <div class="card-image-container mb-4">
-                        <img src="https://placehold.co/600x400/d1d5db/374151?text=Calm+Moonlight" alt="Calm Moonlight Painting Tutorial" class="card-image">
+                        <img src="https://placehold.co/600x400/d1d5db/374151?text=Calm+Moonlight" alt="Calm Moonlight Painting Tutorial" class="card-image" onclick="openLightbox(this.src)" style="cursor:pointer">
                     </div>
                     <div class="text-center">
                         <h2 class="text-xl font-semibold text-gray-900 mb-2">Calm Moonlight Painting</h2>
@@ -134,7 +152,7 @@
             <a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" target="_blank" class="block">
                 <div class="card transform transition-transform duration-300 hover:scale-105">
                     <div class="card-image-container mb-4">
-                        <img src="https://placehold.co/600x400/9ca3af/1f2937?text=Sunset+Horizon" alt="Sunset Horizon Painting Tutorial" class="card-image">
+                        <img src="https://placehold.co/600x400/9ca3af/1f2937?text=Sunset+Horizon" alt="Sunset Horizon Painting Tutorial" class="card-image" onclick="openLightbox(this.src)" style="cursor:pointer">
                     </div>
                     <div class="text-center">
                         <h2 class="text-xl font-semibold text-gray-900 mb-2">Colorful Sunset Horizon</h2>
@@ -147,7 +165,7 @@
             <a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" target="_blank" class="block">
                 <div class="card transform transition-transform duration-300 hover:scale-105">
                     <div class="card-image-container mb-4">
-                        <img src="https://placehold.co/600x400/6b7280/f3f4f6?text=Galaxy+Scene" alt="Galaxy Scene Painting Tutorial" class="card-image">
+                        <img src="https://placehold.co/600x400/6b7280/f3f4f6?text=Galaxy+Scene" alt="Galaxy Scene Painting Tutorial" class="card-image" onclick="openLightbox(this.src)" style="cursor:pointer">
                     </div>
                     <div class="text-center">
                         <h2 class="text-xl font-semibold text-gray-900 mb-2">Sparkling Galaxy Scene</h2>
@@ -160,7 +178,7 @@
             <a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" target="_blank" class="block">
                 <div class="card transform transition-transform duration-300 hover:scale-105">
                     <div class="card-image-container mb-4">
-                        <img src="https://placehold.co/600x400/4b5563/d1d5db?text=Abstract+Swirls" alt="Abstract Swirls Painting Tutorial" class="card-image">
+                        <img src="https://placehold.co/600x400/4b5563/d1d5db?text=Abstract+Swirls" alt="Abstract Swirls Painting Tutorial" class="card-image" onclick="openLightbox(this.src)" style="cursor:pointer">
                     </div>
                     <div class="text-center">
                         <h2 class="text-xl font-semibold text-gray-900 mb-2">Modern Abstract Swirls</h2>
@@ -173,7 +191,7 @@
             <a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" target="_blank" class="block">
                 <div class="card transform transition-transform duration-300 hover:scale-105">
                     <div class="card-image-container mb-4">
-                        <img src="https://placehold.co/600x400/374151/9ca3af?text=Cute+Animals" alt="Cute Animals Painting Tutorial" class="card-image">
+                        <img src="https://placehold.co/600x400/374151/9ca3af?text=Cute+Animals" alt="Cute Animals Painting Tutorial" class="card-image" onclick="openLightbox(this.src)" style="cursor:pointer">
                     </div>
                     <div class="text-center">
                         <h2 class="text-xl font-semibold text-gray-900 mb-2">Painting Cute Animals</h2>
@@ -186,7 +204,7 @@
             <a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" target="_blank" class="block">
                 <div class="card transform transition-transform duration-300 hover:scale-105">
                     <div class="card-image-container mb-4">
-                        <img src="https://placehold.co/600x400/1f2937/d1d5db?text=Monogram+Art" alt="Monogram Art Painting Tutorial" class="card-image">
+                        <img src="https://placehold.co/600x400/1f2937/d1d5db?text=Monogram+Art" alt="Monogram Art Painting Tutorial" class="card-image" onclick="openLightbox(this.src)" style="cursor:pointer">
                     </div>
                     <div class="text-center">
                         <h2 class="text-xl font-semibold text-gray-900 mb-2">Personalized Monogram Art</h2>
@@ -203,5 +221,20 @@
         </footer>
     </div>
 
+    <!-- Lightbox Modal HTML (only once on your page): -->
+    <div class="lightbox-modal" id="lightbox-modal" onclick="closeLightbox()">
+      <img id="lightbox-img" src="" alt="Enlarged image">
+    </div>
+
+    <!-- Add this JS before </body>: -->
+    <script>
+    function openLightbox(src) {
+      document.getElementById('lightbox-img').src = src;
+      document.getElementById('lightbox-modal').classList.add('active');
+    }
+    function closeLightbox() {
+      document.getElementById('lightbox-modal').classList.remove('active');
+    }
+    </script>
 </body>
 </html>
