@@ -2,135 +2,152 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Scavenger Hunt Leaderboard</title>
+  <title>📸 Scavenger Hunt Leaderboard</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #f4f4f9;
-      margin: 0;
+      background: #f5f5f5;
       padding: 20px;
-    }
-    h1 {
       text-align: center;
     }
-    #leaderboard {
-      max-width: 600px;
-      margin: 20px auto;
-      background: #fff;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    h1, h2 {
+      color: #333;
     }
     table {
-      width: 100%;
+      margin: 20px auto;
       border-collapse: collapse;
+      width: 80%;
+      background: white;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
     th, td {
-      padding: 10px;
-      text-align: left;
-      border-bottom: 1px solid #ddd;
+      border: 1px solid #ddd;
+      padding: 12px;
+      text-align: center;
     }
     th {
-      background: #f0f0f0;
+      background: #333;
+      color: white;
     }
-    #gallery {
-      max-width: 900px;
-      margin: 40px auto;
+    tr:nth-child(even) {
+      background: #f9f9f9;
     }
-    #gallery h2 {
-      text-align: center;
-      margin-bottom: 20px;
+    .first {
+      background: gold !important;
+      font-weight: bold;
     }
-    .photos {
+    .second {
+      background: silver !important;
+      font-weight: bold;
+    }
+    .third {
+      background: #cd7f32 !important; /* bronze */
+      font-weight: bold;
+    }
+    #photo-gallery {
       display: flex;
       flex-wrap: wrap;
-      gap: 15px;
       justify-content: center;
+      margin-top: 20px;
     }
-    .photos img {
-      max-width: 200px;
+    #photo-gallery img {
+      width: 150px;
+      margin: 5px;
       border-radius: 10px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      box-shadow: 0 0 5px rgba(0,0,0,0.2);
     }
   </style>
 </head>
 <body>
   <h1>📸 Scavenger Hunt Leaderboard</h1>
+  <table id="leaderboard">
+    <thead>
+      <tr>
+        <th>Rank</th>
+        <th>Team</th>
+        <th>Clues Completed</th>
+        <th>Clues Found</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 
-  <div id="leaderboard">
-    <table>
-      <thead>
-        <tr>
-          <th>Team</th>
-          <th>Clues Solved</th>
-        </tr>
-      </thead>
-      <tbody id="leaderboard-body"></tbody>
-    </table>
-  </div>
-
-  <div id="gallery">
-    <h2>Photo Gallery</h2>
-    <div class="photos" id="photo-gallery"></div>
-  </div>
+  <h2>📸 Submitted Photos</h2>
+  <div id="photo-gallery"></div>
 
   <script>
+    // Replace with YOUR sheet ID and gid
     const sheetURL = "https://docs.google.com/spreadsheets/d/18HRliJGCSznKvQoK1HJ2vtTvtu3E0_iTSpZeeB2dWFk/gviz/tq?tqx=out:json&gid=1128427082";
 
-    fetch(sheetURL)
-      .then(res => res.text())
-      .then(data => {
-        // Strip Google’s weird JSON wrapper
-        const json = JSON.parse(data.substring(47, data.length - 2));
-        const rows = json.table.rows;
+    async function loadLeaderboard() {
+      const res = await fetch(sheetURL);
+      const text = await res.text();
+      const json = JSON.parse(text.substr(47).slice(0, -2));
+      const rows = json.table.rows;
 
-        const teams = {};
-        const photos = [];
+      const teamMap = {};
 
-        rows.forEach(r => {
-          const team = r.c[1]?.v || "Unknown Team";   // Column B: Team Name
-          const clue = r.c[2]?.v || "";               // Column C: Clue Number
-          let photo = r.c[3]?.v || null;              // Column D: Upload Selfie
+      rows.forEach(r => {
+        const team = r.c[1]?.v || "Unknown"; // Column B
+        const clue = r.c[2]?.v || "";        // Column C
+        const photo = r.c[3]?.v || null;     // Column D
 
-          // Fix Google Drive image links
-          if (photo && photo.includes("id=")) {
-            const id = photo.split("id=")[1];
-            photo = `https://drive.google.com/uc?export=view&id=${id}`;
-          }
+        if (!teamMap[team]) {
+          teamMap[team] = { 
+            team, 
+            completed: 0, 
+            found: [], 
+            photos: [] 
+          };
+        }
 
-          if (!teams[team]) {
-            teams[team] = new Set();
-          }
-          if (clue) {
-            teams[team].add(clue);
-          }
-          if (photo) {
-            photos.push({ team, photo });
-          }
-        });
+        // Add clue if unique
+        if (clue && !teamMap[team].found.includes(clue)) {
+          teamMap[team].found.push(clue);
+          teamMap[team].completed++;
+        }
 
-        // Build leaderboard
-        const leaderboard = Object.entries(teams)
-          .map(([team, clues]) => ({ team, count: clues.size }))
-          .sort((a, b) => b.count - a.count);
+        // Add photo
+        if (photo) {
+          teamMap[team].photos.push(photo);
+        }
+      });
 
-        const tbody = document.getElementById("leaderboard-body");
-        leaderboard.forEach(entry => {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `<td>${entry.team}</td><td>${entry.count}</td>`;
-          tbody.appendChild(tr);
-        });
+      let data = Object.values(teamMap);
+      data.sort((a, b) => b.completed - a.completed);
 
-        // Build photo gallery
-        const gallery = document.getElementById("photo-gallery");
-        photos.forEach(p => {
+      // Update leaderboard
+      const tbody = document.querySelector("#leaderboard tbody");
+      tbody.innerHTML = "";
+      data.forEach((row, i) => {
+        const tr = document.createElement("tr");
+        if (i === 0) tr.classList.add("first");
+        if (i === 1) tr.classList.add("second");
+        if (i === 2) tr.classList.add("third");
+
+        tr.innerHTML = `
+          <td>${i + 1} ${i === 0 ? "🏆" : i === 1 ? "🥈" : i === 2 ? "🥉" : ""}</td>
+          <td>${row.team}</td>
+          <td>${row.completed}</td>
+          <td>${row.found.join(", ")}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // Update photo gallery (newest first)
+      const gallery = document.getElementById("photo-gallery");
+      gallery.innerHTML = "";
+      data.forEach(row => {
+        row.photos.forEach(photo => {
           const img = document.createElement("img");
-          img.src = p.photo;
-          img.alt = `${p.team} selfie`;
-          gallery.appendChild(img);
+          img.src = photo;
+          gallery.prepend(img); // newest first
         });
-      })
-      .catch(err => console.error("Error loading sheet:", err));
+      });
+    }
+
+    loadLeaderboard();
+    setInterval(loadLeaderboard, 30000);
   </script>
 </body>
 </html>
