@@ -76,6 +76,7 @@
   <div id="photo-gallery"></div>
 
   <script>
+    // Replace with YOUR sheet ID and gid
     const sheetURL = "https://docs.google.com/spreadsheets/d/18HRliJGCSznKvQoK1HJ2vtTvtu3E0_iTSpZeeB2dWFk/gviz/tq?tqx=out:json&gid=1128427082";
 
     async function loadLeaderboard() {
@@ -84,17 +85,38 @@
       const json = JSON.parse(text.substr(47).slice(0, -2));
       const rows = json.table.rows;
 
-      let data = rows.map(r => ({
-        team: r.c[0]?.v || "Unknown",
-        completed: parseInt(r.c[1]?.v || 0),
-        found: r.c[2]?.v || "",
-        photo: r.c[3]?.v || null
-      }));
+      const teamMap = {};
 
-      // Sort by completed (desc)
+      rows.forEach(r => {
+        const team = r.c[1]?.v || "Unknown"; // Column B
+        const clue = r.c[2]?.v || "";        // Column C
+        const photo = r.c[3]?.v || null;     // Column D
+
+        if (!teamMap[team]) {
+          teamMap[team] = { 
+            team, 
+            completed: 0, 
+            found: [], 
+            photos: [] 
+          };
+        }
+
+        // Add clue if unique
+        if (clue && !teamMap[team].found.includes(clue)) {
+          teamMap[team].found.push(clue);
+          teamMap[team].completed++;
+        }
+
+        // Add photo
+        if (photo) {
+          teamMap[team].photos.push(photo);
+        }
+      });
+
+      let data = Object.values(teamMap);
       data.sort((a, b) => b.completed - a.completed);
 
-      // Update leaderboard table
+      // Update leaderboard
       const tbody = document.querySelector("#leaderboard tbody");
       tbody.innerHTML = "";
       data.forEach((row, i) => {
@@ -107,24 +129,23 @@
           <td>${i + 1} ${i === 0 ? "🏆" : i === 1 ? "🥈" : i === 2 ? "🥉" : ""}</td>
           <td>${row.team}</td>
           <td>${row.completed}</td>
-          <td>${row.found}</td>
+          <td>${row.found.join(", ")}</td>
         `;
         tbody.appendChild(tr);
       });
 
-      // Update photo gallery
+      // Update photo gallery (newest first)
       const gallery = document.getElementById("photo-gallery");
       gallery.innerHTML = "";
       data.forEach(row => {
-        if (row.photo) {
+        row.photos.forEach(photo => {
           const img = document.createElement("img");
-          img.src = row.photo;
-          gallery.appendChild(img);
-        }
+          img.src = photo;
+          gallery.prepend(img); // newest first
+        });
       });
     }
 
-    // Initial load + refresh every 30 seconds
     loadLeaderboard();
     setInterval(loadLeaderboard, 30000);
   </script>
