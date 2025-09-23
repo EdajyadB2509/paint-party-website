@@ -1,163 +1,220 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8" />
   <title>📸 Scavenger Hunt Leaderboard</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f9f9f9;
-      text-align: center;
-      padding: 20px;
-    }
-    h1 {
-      color: #333;
-    }
-    table {
-      margin: 20px auto;
-      border-collapse: collapse;
-      width: 80%;
-      background: white;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-    th, td {
-      padding: 10px;
-      border: 1px solid #ddd;
-    }
-    th {
-      background: #333;
-      color: white;
-    }
-    tr:nth-child(even) {
-      background: #f2f2f2;
-    }
-    .gold {
-      background: gold !important;
-    }
-    .silver {
-      background: silver !important;
-    }
-    .bronze {
-      background: #cd7f32 !important;
-    }
-    .photo-grid {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 15px;
-      margin-top: 30px;
-    }
-    .photo-grid img {
-      max-width: 200px;
-      border-radius: 8px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    }
-    .photo-item {
-      text-align: center;
-      max-width: 200px;
-    }
+    body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; text-align:center; }
+    h1,h2 { color:#333 }
+    table { margin: 20px auto; border-collapse: collapse; width: 90%; background: #fff; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    th,td { padding: 12px; border:1px solid #ddd; text-align:center; }
+    th { background:#222; color:#fff; }
+    tr:nth-child(even){ background:#f9f9f9 }
+    .first{ background:gold !important; font-weight:bold }
+    .second{ background:silver !important; font-weight:bold }
+    .third{ background:#cd7f32 !important; font-weight:bold }
+    #photo-gallery { display:flex; flex-wrap:wrap; justify-content:center; gap:12px; margin-top:20px; }
+    .photo-item { max-width:200px; text-align:center; }
+    .photo-item img { width:100%; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.15); display:block; }
+    .photo-link { display:inline-block; margin-top:6px; font-size:12px; color:#333; text-decoration:underline; }
+    #notice { color:#b33; margin-top:8px; font-size:14px; }
   </style>
 </head>
 <body>
   <h1>📸 Scavenger Hunt Leaderboard</h1>
+
   <table id="leaderboard">
     <thead>
-      <tr>
-        <th>Rank</th>
-        <th>Team</th>
-        <th>Clues Completed</th>
-        <th>Clues Found</th>
-      </tr>
+      <tr><th>Rank</th><th>Team</th><th>Clues Completed</th><th>Clues Found</th></tr>
     </thead>
     <tbody></tbody>
   </table>
 
-  <h2>📷 Submitted Photos</h2>
-  <div class="photo-grid" id="photoGrid"></div>
+  <div id="notice" style="display:none"></div>
 
-  <script>
-    const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSQyf9-3xsKzmB9hMG8i2bNFCPTIYeUWrCCHPFvbHFVHAWCTExHt8R31yZPIk8SS33vVlCbuWEOS508/pub?output=csv";
+  <h2>📸 Submitted Photos</h2>
+  <div id="photo-gallery"></div>
 
-    // Convert Google Drive links into direct image links
-    function fixDriveLink(url) {
-      if (!url) return '';
-      let fileId = '';
-      if (url.includes("open?id=")) {
-        fileId = url.split("open?id=")[1];
-      } else if (url.includes("/file/d/")) {
-        fileId = url.split("/file/d/")[1].split("/")[0];
-      }
-      return fileId ? `https://drive.google.com/uc?export=view&id=${fileId}` : url;
+<script>
+/* ========== CONFIG: published CSV link from Google Sheets ========== */
+const sheetCSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSQyf9-3xsKzmB9hMG8i2bNFCPTIYeUWrCCHPFvbHFVHAWCTExHt8R31yZPIk8SS33vVlCbuWEOS508/pub?output=csv";
+
+/* ---------------- CSV parser (handles quoted fields) ---------------- */
+function parseCSV(text) {
+  const rows = [];
+  let cur = "";
+  let row = [];
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === '"') {
+      if (inQuotes && text[i+1] === '"') { cur += '"'; i++; } // escaped quote
+      else inQuotes = !inQuotes;
+    } else if (c === ',' && !inQuotes) {
+      row.push(cur);
+      cur = "";
+    } else if ((c === '\n' || c === '\r') && !inQuotes) {
+      // handle CRLF
+      if (c === '\r' && text[i+1] === '\n') { i++; }
+      row.push(cur);
+      rows.push(row);
+      row = [];
+      cur = "";
+    } else {
+      cur += c;
+    }
+  }
+  // last field
+  if (cur !== "" || row.length > 0) {
+    row.push(cur);
+    rows.push(row);
+  }
+  // remove any empty trailing rows
+  return rows.filter(r => r.length > 1 || (r.length === 1 && r[0].trim() !== ""));
+}
+
+/* ---------------- Normalize Google Drive links to a direct image URL ---------------- */
+function fixDriveLink(url) {
+  if (!url) return null;
+  url = url.trim();
+  // remove surrounding quotes
+  if (url.startsWith('"') && url.endsWith('"')) url = url.slice(1, -1);
+  // decode HTML entities like &amp;
+  url = url.replace(/&amp;/g, '&');
+
+  // Attempt to extract file id from typical Drive patterns
+  // patterns: id=FILEID, /file/d/FILEID/, direct FILEID
+  const idMatch = url.match(/(?:id=|\/d\/)([a-zA-Z0-9_-]{10,})/);
+  if (idMatch && idMatch[1]) {
+    return `https://drive.google.com/uc?export=view&id=${idMatch[1]}`;
+  }
+  // Another fallback: maybe the whole field is only the id
+  const onlyIdMatch = url.match(/^([a-zA-Z0-9_-]{10,})$/);
+  if (onlyIdMatch) return `https://drive.google.com/uc?export=view&id=${onlyIdMatch[1]}`;
+
+  // if it's already a uc? or an image link, return it
+  return url;
+}
+
+/* ---------------- Build leaderboard & gallery from CSV ---------------- */
+async function loadAndRender() {
+  try {
+    const res = await fetch(sheetCSV);
+    if (!res.ok) throw new Error("Sheet CSV fetch failed: " + res.status);
+    const text = await res.text();
+    const rows = parseCSV(text);
+    if (rows.length === 0) {
+      document.getElementById("notice").style.display = "block";
+      document.getElementById("notice").textContent = "No submissions yet.";
+      return;
     }
 
-    async function loadLeaderboard() {
-      try {
-        const response = await fetch(sheetURL);
-        const data = await response.text();
-        const rows = data.split("\n").slice(1).map(r => r.split(","));
-        
-        const teamStats = {};
-        rows.forEach(row => {
-          const team = row[1]?.trim();
-          const clue = row[2]?.trim();
-          const photo = row[3]?.trim();
-          if (!team) return;
-          
-          if (!teamStats[team]) {
-            teamStats[team] = { clues: new Set(), photos: [] };
+    // Assume header row present. Find header indexes just in case columns moved:
+    const header = rows.shift().map(h => h.trim().toLowerCase());
+    // Common names in your sheet: "timestamp","name/team name","clue number","upload selfie"
+    // We'll try to detect positions for team, clue, photo
+    const teamIdx = header.findIndex(h => /(team|name)/.test(h)) !== -1 ? header.findIndex(h => /(team|name)/.test(h)) : 1;
+    const clueIdx = header.findIndex(h => /(clue)/.test(h)) !== -1 ? header.findIndex(h => /(clue)/.test(h)) : 2;
+    const photoIdx = header.findIndex(h => /(upload|photo|selfie)/.test(h)) !== -1 ? header.findIndex(h => /(upload|photo|selfie)/.test(h)) : 3;
+
+    const teamMap = {};
+    const allPhotos = [];
+
+    rows.forEach((r, idx) => {
+      const team = (r[teamIdx] || "").trim();
+      if (!team) return;
+      const clue = (r[clueIdx] || "").trim();
+      let photoRaw = (r[photoIdx] || "").trim();
+      // If the CSV column got splitted, sometimes the URL may be split across columns; try to rejoin if starts with "https"
+      if (photoRaw && !photoRaw.startsWith("http") && r.length > photoIdx+1) {
+        // attempt to find a column that contains "drive.google" and rebuild
+        for (let j = photoIdx; j < r.length; j++) {
+          if ((r[j]||"").includes("drive.google") || (r[j]||"").includes("https://")) {
+            photoRaw = r.slice(j).join(",").trim();
+            break;
           }
-          if (clue) teamStats[team].clues.add(clue);
-          if (photo) teamStats[team].photos.push({ clue, url: photo });
-        });
-
-        const teams = Object.entries(teamStats).map(([team, info]) => ({
-          team,
-          cluesCompleted: info.clues.size,
-          clues: Array.from(info.clues),
-          photos: info.photos
-        }));
-
-        teams.sort((a, b) => b.cluesCompleted - a.cluesCompleted);
-
-        const tbody = document.querySelector("#leaderboard tbody");
-        tbody.innerHTML = "";
-        teams.forEach((team, i) => {
-          const tr = document.createElement("tr");
-          if (i === 0) tr.classList.add("gold");
-          else if (i === 1) tr.classList.add("silver");
-          else if (i === 2) tr.classList.add("bronze");
-
-          tr.innerHTML = `
-            <td>${i+1} ${i===0?"🥇":i===1?"🥈":i===2?"🥉":""}</td>
-            <td>${team.team}</td>
-            <td>${team.cluesCompleted}</td>
-            <td>${team.clues.join(", ")}</td>
-          `;
-          tbody.appendChild(tr);
-        });
-
-        const photoGrid = document.getElementById("photoGrid");
-        photoGrid.innerHTML = "";
-        teams.forEach(team => {
-          team.photos.forEach(photo => {
-            const div = document.createElement("div");
-            div.className = "photo-item";
-            div.innerHTML = `
-              <img src="${fixDriveLink(photo.url)}" alt="photo">
-              <div>${team.team} – ${photo.clue}</div>
-            `;
-            photoGrid.appendChild(div);
-          });
-        });
-
-      } catch (err) {
-        console.error("Error loading leaderboard:", err);
-        alert("Error loading leaderboard (see console).");
+        }
       }
-    }
 
-    loadLeaderboard();
-    setInterval(loadLeaderboard, 30000); // refresh every 30s
-  </script>
+      if (!teamMap[team]) teamMap[team] = { clues: new Set(), photos: [] };
+      if (clue) teamMap[team].clues.add(clue);
+      if (photoRaw) {
+        const fixed = fixDriveLink(photoRaw);
+        // store both original & fixed so we can show link on error
+        teamMap[team].photos.push({ url: fixed, original: photoRaw });
+        allPhotos.push({ team, url: fixed, original: photoRaw, idx });
+      }
+    });
+
+    // Build leaderboard array
+    const leaderboard = Object.keys(teamMap).map(team => ({
+      team,
+      count: teamMap[team].clues.size,
+      found: Array.from(teamMap[team].clues).sort(),
+      photos: teamMap[team].photos
+    }));
+    leaderboard.sort((a,b) => b.count - a.count);
+
+    // Render table
+    const tbody = document.querySelector("#leaderboard tbody");
+    tbody.innerHTML = "";
+    leaderboard.forEach((row, i) => {
+      const tr = document.createElement("tr");
+      if (i===0) tr.classList.add("first");
+      if (i===1) tr.classList.add("second");
+      if (i===2) tr.classList.add("third");
+      tr.innerHTML = `<td>${i+1} ${i===0?"🏆":i===1?"🥈":i===2?"🥉":""}</td>
+                      <td>${escapeHtml(row.team)}</td>
+                      <td>${row.count}</td>
+                      <td>${escapeHtml(row.found.join(", "))}</td>`;
+      tbody.appendChild(tr);
+    });
+
+    // Render photos (newest first)
+    const gallery = document.getElementById("photo-gallery");
+    gallery.innerHTML = "";
+    // allPhotos may not be strictly newest-first; reverse for latest predominance
+    allPhotos.reverse().forEach(p => {
+      const wrapper = document.createElement("div");
+      wrapper.className = "photo-item";
+      const img = document.createElement("img");
+      img.src = p.url;
+      img.alt = `${p.team} - photo`;
+      // onerror: show a clickable link that opens the original Drive page (helps debug permission issues)
+      img.onerror = function() {
+        img.style.display = "none";
+        const link = document.createElement("a");
+        link.href = p.url || p.original;
+        link.target = "_blank";
+        link.className = "photo-link";
+        link.textContent = "View photo (may require permission)";
+        wrapper.appendChild(link);
+        // also show brief notice suggesting permission issue
+        document.getElementById("notice").style.display = "block";
+        document.getElementById("notice").textContent = "Some photos failed to load — if they don't open in a new tab, set the Drive folder to 'Anyone with the link can view'.";
+        console.warn("Image failed to load:", p.url, "original:", p.original);
+      };
+      wrapper.appendChild(img);
+      const caption = document.createElement("div");
+      caption.style.marginTop = "6px";
+      caption.style.fontSize = "13px";
+      caption.style.color = "#333";
+      caption.textContent = `${p.team} – ${p.original ? '' : ''}`;
+      wrapper.appendChild(caption);
+      gallery.appendChild(wrapper);
+    });
+
+  } catch (err) {
+    console.error("Error building leaderboard:", err);
+    document.getElementById("notice").style.display = "block";
+    document.getElementById("notice").textContent = "Error loading data (see console).";
+  }
+}
+
+function escapeHtml(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+loadAndRender();
+setInterval(loadAndRender, 30000);
+</script>
 </body>
 </html>
