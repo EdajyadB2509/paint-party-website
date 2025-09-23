@@ -1,26 +1,65 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="UTF-8">
   <title>📸 Scavenger Hunt Leaderboard</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; text-align: center; }
-    h1, h2 { color: #333; }
-    table { margin: 20px auto; border-collapse: collapse; width: 80%; background: white; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-    th, td { border: 1px solid #ddd; padding: 12px; text-align: center; }
-    th { background: #333; color: white; }
-    tr:nth-child(even) { background: #f9f9f9; }
-    .first { background: gold !important; font-weight: bold; }
-    .second { background: silver !important; font-weight: bold; }
-    .third { background: #cd7f32 !important; font-weight: bold; }
-    #photo-gallery { display:flex; flex-wrap:wrap; justify-content:center; margin-top:20px; gap:8px; }
-    #photo-gallery img { width:150px; border-radius:10px; box-shadow: 0 0 5px rgba(0,0,0,0.2); }
-    .status { margin-top: 8px; color:#666; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+      text-align: center;
+    }
+    h1, h2 {
+      color: #333;
+    }
+    table {
+      margin: 20px auto;
+      border-collapse: collapse;
+      width: 80%;
+      background: white;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 12px;
+      text-align: center;
+    }
+    th {
+      background: #333;
+      color: white;
+    }
+    tr:nth-child(even) {
+      background: #f9f9f9;
+    }
+    .first {
+      background: gold !important;
+      font-weight: bold;
+    }
+    .second {
+      background: silver !important;
+      font-weight: bold;
+    }
+    .third {
+      background: #cd7f32 !important; /* bronze */
+      font-weight: bold;
+    }
+    #photo-gallery {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 20px;
+    }
+    #photo-gallery img {
+      width: 150px;
+      margin: 5px;
+      border-radius: 10px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.2);
+    }
   </style>
 </head>
 <body>
   <h1>📸 Scavenger Hunt Leaderboard</h1>
-
   <table id="leaderboard">
     <thead>
       <tr>
@@ -33,168 +72,87 @@
     <tbody></tbody>
   </table>
 
-  <div class="status" id="status">Loading...</div>
-
   <h2>📸 Submitted Photos</h2>
   <div id="photo-gallery"></div>
 
   <script>
-    // --- IMPORTANT ---
-    // Replace this URL ONLY if your sheet's JSON feed uses a different gid or sheet id.
-    // This URL format is what you get when you publish the sheet and use the gviz/tq endpoint:
-    // https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/gviz/tq?tqx=out:json&gid=YOUR_GID
-    const sheetURL = "https://docs.google.com/spreadsheets/d/18HRliJGCSznKvQoK1HJ2vtTvtu3E0_iTSpZeeB2dWFk/gviz/tq?tqx=out:json&gid=1128427082";
-
-    // Helper: convert various Google Drive share links into direct image URLs for <img>
-    function normalizeDriveImageUrl(url) {
-      if (!url) return null;
-      // If it's already a direct uc?export=view link, return it:
-      if (url.includes("uc?export=view") || url.includes("drive.google.com/uc")) return url;
-
-      // Try to extract id from common patterns: id=ID or /d/ID/
-      const idMatch = url.match(/(?:id=|\/d\/)([a-zA-Z0-9_-]{10,})/);
-      if (idMatch && idMatch[1]) {
-        return `https://drive.google.com/uc?export=view&id=${idMatch[1]}`;
-      }
-
-      // If no id found, return the original (may or may not work)
-      return url;
-    }
-
-    // Parse Google’s gviz JSON wrapper robustly
-    function parseGviz(jsonText) {
-      try {
-        // Most responses look like:  /*O_o*/\ngoogle.visualization.Query.setResponse({...});
-        const m = jsonText.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\);?/);
-        if (!m || !m[1]) throw new Error("Unexpected gviz response format.");
-        return JSON.parse(m[1]);
-      } catch (e) {
-        console.error("Failed to parse gviz JSON:", e);
-        throw e;
-      }
-    }
+    // Published Google Sheet CSV link
+    const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSQyf9-3xsKzmB9hMG8i2bNFCPTIYeUWrCCHPFvbHFVHAWCTExHt8R31yZPIk8SS33vVlCbuWEOS508/pub?output=csv";
 
     async function loadLeaderboard() {
-      document.getElementById("status").textContent = "Loading...";
       try {
         const res = await fetch(sheetURL);
-        if (!res.ok) throw new Error("Network response not OK: " + res.status);
-        const raw = await res.text();
-        const parsed = parseGviz(raw);
-        const rows = parsed.table.rows || [];
-        if (!rows.length) {
-          document.getElementById("status").textContent = "No submissions yet.";
-          console.log("No rows returned from sheet.");
-        } else {
-          document.getElementById("status").textContent = `Showing ${rows.length} submissions.`;
-        }
+        const text = await res.text();
 
-        // teamMap: teamName -> { clues: Set, clueTimes: {clue: earliestTimestamp}, photos: [{url, ts}] }
+        // Parse CSV rows
+        const rows = text.split("\n").map(r => r.split(","));
+        rows.shift(); // remove header row
+
         const teamMap = {};
-        const allPhotos = []; // { team, url, ts }
 
         rows.forEach(r => {
-          // standard Google Form response columns:
-          // r.c[0] = Timestamp, r.c[1] = Team, r.c[2] = Clue, r.c[3] = PhotoLink
-          const tsRaw = r.c[0]?.v || "";
-          const team = (r.c[1]?.v || "Unknown").toString().trim();
-          const clue = (r.c[2]?.v || "").toString().trim();
-          const photoRaw = r.c[3]?.v || null;
-          // Parse timestamp (Google returns locale formatted strings); Date can usually parse it
-          const ts = tsRaw ? new Date(tsRaw) : null;
-          const tsEpoch = ts ? ts.getTime() : null;
+          const team = r[1]?.trim() || "Unknown"; // Column B
+          const clue = r[2]?.trim() || "";        // Column C
+          const photo = r[3]?.trim() || null;     // Column D
 
           if (!teamMap[team]) {
-            teamMap[team] = { clues: new Set(), clueTimes: {}, photos: [] };
+            teamMap[team] = { 
+              team, 
+              completed: 0, 
+              found: [], 
+              photos: [] 
+            };
           }
 
-          // Record earliest timestamp for this clue (if multiple submissions for same clue by same team)
-          if (clue) {
-            if (!teamMap[team].clueTimes[clue]) {
-              teamMap[team].clueTimes[clue] = tsEpoch;
-            } else {
-              // keep earliest time for that clue
-              if (tsEpoch && tsEpoch < teamMap[team].clueTimes[clue]) {
-                teamMap[team].clueTimes[clue] = tsEpoch;
-              }
-            }
-            teamMap[team].clues.add(clue);
+          // Add clue if unique
+          if (clue && !teamMap[team].found.includes(clue)) {
+            teamMap[team].found.push(clue);
+            teamMap[team].completed++;
           }
 
-          // photos: normalize Drive link and store with its timestamp
-          if (photoRaw) {
-            const normalized = normalizeDriveImageUrl(photoRaw.toString());
-            const photoObj = { url: normalized, ts: tsEpoch || 0, team };
-            teamMap[team].photos.push(photoObj);
-            allPhotos.push(photoObj);
+          // Add photo
+          if (photo) {
+            teamMap[team].photos.push(photo);
           }
         });
 
-        // Build leaderboard array with finishing time tie-breaker:
-        // finishingTime = the time when the team submitted their LATEST clue among the clues counted (i.e. max clue timestamp)
-        const leaderboard = Object.entries(teamMap).map(([team, info]) => {
-          const clueTimes = Object.values(info.clueTimes).filter(v => v != null);
-          // finishingTime is the max of the clue timestamps (time they completed current set)
-          const finishingTime = clueTimes.length ? Math.max(...clueTimes) : Infinity;
-          return {
-            team,
-            completed: info.clues.size,
-            found: Array.from(info.clues).sort(), // alphabetical or numeric depending on clue text
-            finishingTime,
-            photos: info.photos
-          };
-        });
+        let data = Object.values(teamMap);
+        data.sort((a, b) => b.completed - a.completed);
 
-        // Sort: primary = completed desc, secondary = finishingTime asc (earlier wins)
-        leaderboard.sort((a, b) => {
-          if (b.completed !== a.completed) return b.completed - a.completed;
-          return (a.finishingTime || Infinity) - (b.finishingTime || Infinity);
-        });
-
-        // Render leaderboard table
+        // Update leaderboard
         const tbody = document.querySelector("#leaderboard tbody");
         tbody.innerHTML = "";
-        leaderboard.forEach((row, i) => {
+        data.forEach((row, i) => {
           const tr = document.createElement("tr");
           if (i === 0) tr.classList.add("first");
           if (i === 1) tr.classList.add("second");
           if (i === 2) tr.classList.add("third");
 
-          const medal = i === 0 ? "🏆" : i === 1 ? "🥈" : i === 2 ? "🥉" : "";
           tr.innerHTML = `
-            <td>${i + 1} ${medal}</td>
-            <td>${escapeHtml(row.team)}</td>
+            <td>${i + 1} ${i === 0 ? "🏆" : i === 1 ? "🥈" : i === 2 ? "🥉" : ""}</td>
+            <td>${row.team}</td>
             <td>${row.completed}</td>
-            <td>${escapeHtml(row.found.join(", "))}</td>
+            <td>${row.found.join(", ")}</td>
           `;
           tbody.appendChild(tr);
         });
 
-        // Render photo gallery (newest first)
-        allPhotos.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+        // Update photo gallery (newest first)
         const gallery = document.getElementById("photo-gallery");
         gallery.innerHTML = "";
-        allPhotos.forEach(p => {
-          const img = document.createElement("img");
-          img.src = p.url;
-          img.alt = `${p.team} selfie`;
-          img.title = p.team;
-          gallery.appendChild(img);
+        data.forEach(row => {
+          row.photos.forEach(photo => {
+            const img = document.createElement("img");
+            img.src = photo;
+            gallery.prepend(img); 
+          });
         });
-
-        console.log("Leaderboard data loaded", leaderboard);
       } catch (err) {
         console.error("Error loading leaderboard:", err);
-        document.getElementById("status").textContent = "Error loading leaderboard (see console).";
+        alert("Error loading leaderboard (see console).");
       }
     }
 
-    // small helper to avoid injecting raw HTML (safety)
-    function escapeHtml(str) {
-      return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    }
-
-    // initial load + auto refresh
     loadLeaderboard();
     setInterval(loadLeaderboard, 30000);
   </script>
