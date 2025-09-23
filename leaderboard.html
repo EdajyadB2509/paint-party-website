@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Scavenger Hunt Leaderboard</title>
+  <title>📸 Scavenger Hunt Leaderboard</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -10,7 +10,7 @@
       padding: 20px;
       text-align: center;
     }
-    h1 {
+    h1, h2 {
       color: #333;
     }
     table {
@@ -44,6 +44,18 @@
       background: #cd7f32 !important; /* bronze */
       font-weight: bold;
     }
+    #photo-gallery {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 20px;
+    }
+    #photo-gallery img {
+      width: 150px;
+      margin: 5px;
+      border-radius: 10px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.2);
+    }
   </style>
 </head>
 <body>
@@ -60,31 +72,33 @@
     <tbody></tbody>
   </table>
 
-  <script>
-    async function loadLeaderboard() {
-      const url = "https://docs.google.com/spreadsheets/d/18HRliJGCSznKvQoK1HJ2vtTvtu3E0_iTSpZeeB2dWFk/gviz/tq?tqx=out:json&gid=1128427082";
-      const res = await fetch(url);
-      const text = await res.text();
+  <h2>📸 Submitted Photos</h2>
+  <div id="photo-gallery"></div>
 
-      // Trim Google’s weird JSON wrapper
+  <script>
+    const sheetURL = "https://docs.google.com/spreadsheets/d/18HRliJGCSznKvQoK1HJ2vtTvtu3E0_iTSpZeeB2dWFk/gviz/tq?tqx=out:json&gid=1128427082";
+
+    async function loadLeaderboard() {
+      const res = await fetch(sheetURL);
+      const text = await res.text();
       const json = JSON.parse(text.substr(47).slice(0, -2));
       const rows = json.table.rows;
 
       let data = rows.map(r => ({
         team: r.c[0]?.v || "Unknown",
         completed: parseInt(r.c[1]?.v || 0),
-        found: r.c[2]?.v || ""
+        found: r.c[2]?.v || "",
+        photo: r.c[3]?.v || null
       }));
 
-      // Sort by completed (desc), then by earliest row if tie
+      // Sort by completed (desc)
       data.sort((a, b) => b.completed - a.completed);
 
+      // Update leaderboard table
       const tbody = document.querySelector("#leaderboard tbody");
       tbody.innerHTML = "";
-
       data.forEach((row, i) => {
         const tr = document.createElement("tr");
-
         if (i === 0) tr.classList.add("first");
         if (i === 1) tr.classList.add("second");
         if (i === 2) tr.classList.add("third");
@@ -97,9 +111,20 @@
         `;
         tbody.appendChild(tr);
       });
+
+      // Update photo gallery
+      const gallery = document.getElementById("photo-gallery");
+      gallery.innerHTML = "";
+      data.forEach(row => {
+        if (row.photo) {
+          const img = document.createElement("img");
+          img.src = row.photo;
+          gallery.appendChild(img);
+        }
+      });
     }
 
-    // Load leaderboard immediately, then refresh every 30s
+    // Initial load + refresh every 30 seconds
     loadLeaderboard();
     setInterval(loadLeaderboard, 30000);
   </script>
