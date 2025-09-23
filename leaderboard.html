@@ -77,24 +77,36 @@ function parseCSV(text) {
 function fixDriveLink(url) {
   if (!url) return null;
   url = url.trim();
-  // remove surrounding quotes
+
+  // Remove surrounding quotes
   if (url.startsWith('"') && url.endsWith('"')) url = url.slice(1, -1);
-  // decode HTML entities like &amp;
+
+  // Decode HTML entities like &amp;
   url = url.replace(/&amp;/g, '&');
 
-  // Attempt to extract file id from typical Drive patterns
-  // patterns: id=FILEID, /file/d/FILEID/, direct FILEID
-  const idMatch = url.match(/(?:id=|\/d\/)([a-zA-Z0-9_-]{10,})/);
-  if (idMatch && idMatch[1]) {
-    return `https://drive.google.com/uc?export=view&id=${idMatch[1]}`;
-  }
-  // Another fallback: maybe the whole field is only the id
-  const onlyIdMatch = url.match(/^([a-zA-Z0-9_-]{10,})$/);
-  if (onlyIdMatch) return `https://drive.google.com/uc?export=view&id=${onlyIdMatch[1]}`;
+  // Try to extract the file ID from known patterns
+  let fileId = null;
 
-  // if it's already a uc? or an image link, return it
+  // Pattern 1: /d/FILEID/ in URL
+  let match = url.match(/\/d\/([a-zA-Z0-9_-]{10,})/);
+  if (match) fileId = match[1];
+
+  // Pattern 2: ?id=FILEID
+  if (!fileId) {
+    match = url.match(/[?&]id=([a-zA-Z0-9_-]{10,})/);
+    if (match) fileId = match[1];
+  }
+
+  // Pattern 3: If the URL is just the file ID
+  if (!fileId && /^[a-zA-Z0-9_-]{10,}$/.test(url)) {
+    fileId = url;
+  }
+
+  // If we found an ID, return the direct link
+  if (fileId) return `https://drive.google.com/uc?export=view&id=${fileId}`;
+
+  // Otherwise, return the original URL
   return url;
-}
 
 /* ---------------- Build leaderboard & gallery from CSV ---------------- */
 async function loadAndRender() {
