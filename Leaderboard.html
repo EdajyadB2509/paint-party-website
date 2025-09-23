@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Scavenger Hunt Leaderboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+      text-align: center;
+    }
+    h1 {
+      color: #333;
+    }
+    table {
+      margin: 20px auto;
+      border-collapse: collapse;
+      width: 80%;
+      background: white;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 12px;
+      text-align: center;
+    }
+    th {
+      background: #333;
+      color: white;
+    }
+    tr:nth-child(even) {
+      background: #f9f9f9;
+    }
+    .first {
+      background: gold !important;
+      font-weight: bold;
+    }
+    .second {
+      background: silver !important;
+      font-weight: bold;
+    }
+    .third {
+      background: #cd7f32 !important; /* bronze */
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>📸 Scavenger Hunt Leaderboard</h1>
+  <table id="leaderboard">
+    <thead>
+      <tr>
+        <th>Rank</th>
+        <th>Team</th>
+        <th>Clues Completed</th>
+        <th>Clues Found</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    async function loadLeaderboard() {
+      const url = "https://docs.google.com/spreadsheets/d/18HRliJGCSznKvQoK1HJ2vtTvtu3E0_iTSpZeeB2dWFk/gviz/tq?tqx=out:json&gid=1128427082";
+      const res = await fetch(url);
+      const text = await res.text();
+
+      // Trim Google’s weird JSON wrapper
+      const json = JSON.parse(text.substr(47).slice(0, -2));
+      const rows = json.table.rows;
+
+      let data = rows.map(r => ({
+        team: r.c[0]?.v || "Unknown",
+        completed: parseInt(r.c[1]?.v || 0),
+        found: r.c[2]?.v || ""
+      }));
+
+      // Sort by completed (desc), then by earliest row if tie
+      data.sort((a, b) => b.completed - a.completed);
+
+      const tbody = document.querySelector("#leaderboard tbody");
+      tbody.innerHTML = "";
+
+      data.forEach((row, i) => {
+        const tr = document.createElement("tr");
+
+        if (i === 0) tr.classList.add("first");
+        if (i === 1) tr.classList.add("second");
+        if (i === 2) tr.classList.add("third");
+
+        tr.innerHTML = `
+          <td>${i + 1} ${i === 0 ? "🏆" : i === 1 ? "🥈" : i === 2 ? "🥉" : ""}</td>
+          <td>${row.team}</td>
+          <td>${row.completed}</td>
+          <td>${row.found}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Load leaderboard immediately, then refresh every 30s
+    loadLeaderboard();
+    setInterval(loadLeaderboard, 30000);
+  </script>
+</body>
+</html>
