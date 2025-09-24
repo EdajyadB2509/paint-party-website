@@ -25,7 +25,7 @@
 
   <table id="leaderboard">
     <thead>
-      <tr><th>Rank</th><th>Team</th><th># Clues Completed</th><th>Clues Completed</th></tr>
+      <tr><th>Rank</th><th>Team</th><th>Clues Completed</th><th>Clues Found</th></tr>
     </thead>
     <tbody></tbody>
   </table>
@@ -39,7 +39,7 @@
 /* ========== CONFIG: published CSV link from Google Sheets ========== */
 const sheetCSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSQyf9-3xsKzmB9hMG8i2bNFCPTIYeUWrCCHPFvbHFVHAWCTExHt8R31yZPIk8SS33vVlCbuWEOS508/pub?output=csv";
 
-/* ---------------- CSV parser (handles quoted fields) ---------------- */
+/* ---------------- CSV parser ---------------- */
 function parseCSV(text) {
   const rows = [];
   let cur = "";
@@ -48,173 +48,146 @@ function parseCSV(text) {
   for (let i = 0; i < text.length; i++) {
     const c = text[i];
     if (c === '"') {
-      if (inQuotes && text[i+1] === '"') { cur += '"'; i++; } // escaped quote
+      if (inQuotes && text[i+1] === '"') { cur += '"'; i++; }
       else inQuotes = !inQuotes;
     } else if (c === ',' && !inQuotes) {
-      row.push(cur);
-      cur = "";
+      row.push(cur); cur="";
     } else if ((c === '\n' || c === '\r') && !inQuotes) {
-      // handle CRLF
-      if (c === '\r' && text[i+1] === '\n') { i++; }
-      row.push(cur);
-      rows.push(row);
-      row = [];
-      cur = "";
-    } else {
-      cur += c;
-    }
+      if (c === '\r' && text[i+1]==='\n') i++;
+      row.push(cur); rows.push(row); row=[]; cur="";
+    } else cur += c;
   }
-  // last field
-  if (cur !== "" || row.length > 0) {
-    row.push(cur);
-    rows.push(row);
-  }
-  // remove any empty trailing rows
-  return rows.filter(r => r.length > 1 || (r.length === 1 && r[0].trim() !== ""));
+  if (cur!=="" || row.length>0) { row.push(cur); rows.push(row); }
+  return rows.filter(r => r.length>1 || (r.length===1 && r[0].trim()!==""));
 }
 
-/* ---------------- Normalize Google Drive links to a direct image URL ---------------- */
+/* ---------------- Normalize Google Drive links ---------------- */
 function fixDriveLink(url) {
   if (!url) return null;
   url = url.trim();
-  // remove surrounding quotes
-  if (url.startsWith('"') && url.endsWith('"')) url = url.slice(1, -1);
-  // decode HTML entities like &amp;
-  url = url.replace(/&amp;/g, '&');
-
-  // Attempt to extract file id from typical Drive patterns
-  // patterns: id=FILEID, /file/d/FILEID/, direct FILEID
-  const idMatch = url.match(/(?:id=|\/d\/)([a-zA-Z0-9_-]{10,})/);
-  if (idMatch && idMatch[1]) {
-    return `https://drive.google.com/uc?export=view&id=${idMatch[1]}`;
-  }
-  // Another fallback: maybe the whole field is only the id
-  const onlyIdMatch = url.match(/^([a-zA-Z0-9_-]{10,})$/);
-  if (onlyIdMatch) return `https://drive.google.com/uc?export=view&id=${onlyIdMatch[1]}`;
-
-  // if it's already a uc? or an image link, return it
+  if (url.startsWith('"') && url.endsWith('"')) url = url.slice(1,-1);
+  url = url.replace(/&amp;/g,'&');
+  // Extract file ID
+  let fileId = null;
+  let match = url.match(/\/d\/([a-zA-Z0-9_-]{10,})/);
+  if (match) fileId = match[1];
+  if (!fileId) match = url.match(/[?&]id=([a-zA-Z0-9_-]{10,})/); if (match) fileId=match[1];
+  if (!fileId && /^[a-zA-Z0-9_-]{10,}$/.test(url)) fileId=url;
+  if (fileId) return `https://drive.google.com/uc?export=view&id=${fileId}`;
   return url;
 }
 
-/* ---------------- Build leaderboard & gallery from CSV ---------------- */
+/* ---------------- Build leaderboard & gallery ---------------- */
 async function loadAndRender() {
   try {
     const res = await fetch(sheetCSV);
-    if (!res.ok) throw new Error("Sheet CSV fetch failed: " + res.status);
+    if (!res.ok) throw new Error("Sheet CSV fetch failed: "+res.status);
     const text = await res.text();
     const rows = parseCSV(text);
     if (rows.length === 0) {
-      document.getElementById("notice").style.display = "block";
-      document.getElementById("notice").textContent = "No submissions yet.";
+      document.getElementById("notice").style.display="block";
+      document.getElementById("notice").textContent="No submissions yet.";
       return;
     }
 
-    // Assume header row present. Find header indexes just in case columns moved:
-    const header = rows.shift().map(h => h.trim().toLowerCase());
-    // Common names in your sheet: "timestamp","name/team name","clue number","upload selfie"
-    // We'll try to detect positions for team, clue, photo
-    const teamIdx = header.findIndex(h => /(team|name)/.test(h)) !== -1 ? header.findIndex(h => /(team|name)/.test(h)) : 1;
-    const clueIdx = header.findIndex(h => /(clue)/.test(h)) !== -1 ? header.findIndex(h => /(clue)/.test(h)) : 2;
-    const photoIdx = header.findIndex(h => /(upload|photo|selfie)/.test(h)) !== -1 ? header.findIndex(h => /(upload|photo|selfie)/.test(h)) : 3;
+    const header = rows.shift().map(h=>h.trim().toLowerCase());
+    const teamIdx = 1; // Column B
+    const clueIdx = 2; // Column C
+    const photoIdx = 3; // Column D (force using D)
 
     const teamMap = {};
     const allPhotos = [];
 
-    rows.forEach((r, idx) => {
-      const team = (r[teamIdx] || "").trim();
+    rows.forEach(r=>{
+      const team=(r[teamIdx]||"").trim();
       if (!team) return;
-      const clue = (r[clueIdx] || "").trim();
-      let photoRaw = (r[photoIdx] || "").trim();
-      // If the CSV column got splitted, sometimes the URL may be split across columns; try to rejoin if starts with "https"
-      if (photoRaw && !photoRaw.startsWith("http") && r.length > photoIdx+1) {
-        // attempt to find a column that contains "drive.google" and rebuild
-        for (let j = photoIdx; j < r.length; j++) {
-          if ((r[j]||"").includes("drive.google") || (r[j]||"").includes("https://")) {
-            photoRaw = r.slice(j).join(",").trim();
-            break;
-          }
-        }
-      }
+      const clue=(r[clueIdx]||"").trim();
+      let photoRaw=(r[photoIdx]||"").trim();
 
-      if (!teamMap[team]) teamMap[team] = { clues: new Set(), photos: [] };
+      if (!teamMap[team]) teamMap[team]={clues:new Set(), photos:[]};
       if (clue) teamMap[team].clues.add(clue);
       if (photoRaw) {
         const fixed = fixDriveLink(photoRaw);
-        // store both original & fixed so we can show link on error
-        teamMap[team].photos.push({ url: fixed, original: photoRaw });
-        allPhotos.push({ team, url: fixed, original: photoRaw, idx });
+        teamMap[team].photos.push({url:fixed, original:photoRaw});
+        allPhotos.push({team,url:fixed,original:photoRaw});
       }
     });
 
-    // Build leaderboard array
-    const leaderboard = Object.keys(teamMap).map(team => ({
+    const leaderboard = Object.keys(teamMap).map(team=>({
       team,
       count: teamMap[team].clues.size,
       found: Array.from(teamMap[team].clues).sort(),
       photos: teamMap[team].photos
     }));
-    leaderboard.sort((a,b) => b.count - a.count);
+    leaderboard.sort((a,b)=>b.count - a.count);
 
     // Render table
     const tbody = document.querySelector("#leaderboard tbody");
-    tbody.innerHTML = "";
-    leaderboard.forEach((row, i) => {
-      const tr = document.createElement("tr");
-      if (i===0) tr.classList.add("first");
-      if (i===1) tr.classList.add("second");
-      if (i===2) tr.classList.add("third");
-      tr.innerHTML = `<td>${i+1} ${i===0?"🏆":i===1?"🥈":i===2?"🥉":""}</td>
-                      <td>${escapeHtml(row.team)}</td>
-                      <td>${row.count}</td>
-                      <td>${escapeHtml(row.found.join(", "))}</td>`;
+    tbody.innerHTML="";
+    leaderboard.forEach((row,i)=>{
+      const tr=document.createElement("tr");
+      if(i===0) tr.classList.add("first");
+      if(i===1) tr.classList.add("second");
+      if(i===2) tr.classList.add("third");
+      tr.innerHTML=`<td>${i+1} ${i===0?"🏆":i===1?"🥈":i===2?"🥉":""}</td>
+                    <td>${escapeHtml(row.team)}</td>
+                    <td>${row.count}</td>
+                    <td>${escapeHtml(row.found.join(", "))}</td>`;
       tbody.appendChild(tr);
     });
 
-    // Render photos (newest first)
+    // Render photos (thumbnails)
     const gallery = document.getElementById("photo-gallery");
-    gallery.innerHTML = "";
-    // allPhotos may not be strictly newest-first; reverse for latest predominance
-    allPhotos.reverse().forEach(p => {
-      const wrapper = document.createElement("div");
-      wrapper.className = "photo-item";
-      const img = document.createElement("img");
-      img.src = p.url;
-      img.alt = `${p.team} - photo`;
-      // onerror: show a clickable link that opens the original Drive page (helps debug permission issues)
-      img.onerror = function() {
-        img.style.display = "none";
-        const link = document.createElement("a");
-        link.href = p.url || p.original;
-        link.target = "_blank";
-        link.className = "photo-link";
-        link.textContent = "View photo (may require permission)";
+    gallery.innerHTML="";
+    allPhotos.reverse().forEach(p=>{
+      const wrapper=document.createElement("div");
+      wrapper.className="photo-item";
+
+      const thumb=document.createElement("img");
+      thumb.src=p.url;
+      thumb.alt=`${p.team} - photo`;
+      thumb.style.width="150px";
+      thumb.style.height="150px";
+      thumb.style.objectFit="cover";
+      thumb.style.cursor="pointer";
+
+      thumb.onclick = ()=>window.open(p.url,"_blank");
+
+      thumb.onerror=function(){
+        thumb.style.display="none";
+        const link=document.createElement("a");
+        link.href=p.url||p.original;
+        link.target="_blank";
+        link.className="photo-link";
+        link.textContent="View photo (may require permission)";
         wrapper.appendChild(link);
-        // also show brief notice suggesting permission issue
-        document.getElementById("notice").style.display = "block";
-        document.getElementById("notice").textContent = "Some photos failed to load — if they don't open in a new tab, set the Drive folder to 'Anyone with the link can view'.";
-        console.warn("Image failed to load:", p.url, "original:", p.original);
+        document.getElementById("notice").style.display="block";
+        document.getElementById("notice").textContent="Some photos failed to load — if they don't open in a new tab, set the Drive folder to 'Anyone with the link can view'.";
       };
-      wrapper.appendChild(img);
-      const caption = document.createElement("div");
-      caption.style.marginTop = "6px";
-      caption.style.fontSize = "13px";
-      caption.style.color = "#333";
-      caption.textContent = `${p.team} – ${p.original ? '' : ''}`;
+
+      wrapper.appendChild(thumb);
+
+      const caption=document.createElement("div");
+      caption.style.marginTop="6px";
+      caption.style.fontSize="13px";
+      caption.style.color="#333";
+      caption.textContent=p.team;
       wrapper.appendChild(caption);
+
       gallery.appendChild(wrapper);
     });
 
-  } catch (err) {
-    console.error("Error building leaderboard:", err);
-    document.getElementById("notice").style.display = "block";
-    document.getElementById("notice").textContent = "Error loading data (see console).";
+  } catch(err) {
+    console.error("Error building leaderboard:",err);
+    document.getElementById("notice").style.display="block";
+    document.getElementById("notice").textContent="Error loading data (see console).";
   }
 }
 
 function escapeHtml(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
 loadAndRender();
-setInterval(loadAndRender, 30000);
+setInterval(loadAndRender,30000);
 </script>
 </body>
 </html>
