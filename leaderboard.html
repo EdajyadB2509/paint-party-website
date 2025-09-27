@@ -4,20 +4,20 @@
   <meta charset="utf-8" />
   <title>📸 Scavenger Hunt Leaderboard</title>
   <style>
-    body { font-family: Arial, sans-serif; background:#f5f5f5; padding:20px; text-align:center; }
-    h1,h2 { color:#333; }
-    table { margin:20px auto; border-collapse:collapse; width:90%; background:#fff; box-shadow:0 0 10px rgba(0,0,0,0.1); }
-    th,td { padding:12px; border:1px solid #ddd; text-align:center; }
+    body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; text-align:center; }
+    h1,h2 { color:#333 }
+    table { margin: 20px auto; border-collapse: collapse; width: 90%; background: #fff; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    th,td { padding: 12px; border:1px solid #ddd; text-align:center; }
     th { background:#222; color:#fff; }
     tr:nth-child(even){ background:#f9f9f9 }
     .first{ background:gold !important; font-weight:bold }
     .second{ background:silver !important; font-weight:bold }
     .third{ background:#cd7f32 !important; font-weight:bold }
-    #notice { color:#b33; margin-top:8px; font-size:14px; display:none; }
     #photo-gallery { display:flex; flex-wrap:wrap; justify-content:center; gap:12px; margin-top:20px; }
     .photo-item { max-width:200px; text-align:center; }
     .photo-item img { width:100%; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.15); display:block; }
     .photo-link { display:inline-block; margin-top:6px; font-size:12px; color:#333; text-decoration:underline; }
+    #notice { color:#b33; margin-top:8px; font-size:14px; }
   </style>
 </head>
 <body>
@@ -30,7 +30,7 @@
     <tbody></tbody>
   </table>
 
-  <div id="notice"></div>
+  <div id="notice" style="display:none"></div>
 
   <h2>📸 Submitted Photos</h2>
   <div id="photo-gallery"></div>
@@ -39,11 +39,13 @@
 /* ========== CONFIG: published CSV link from Google Sheets ========== */
 const sheetCSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSQyf9-3xsKzmB9hMG8i2bNFCPTIYeUWrCCHPFvbHFVHAWCTExHt8R31yZPIk8SS33vVlCbuWEOS508/pub?output=csv";
 
-/* ------------ CSV parser (handles quoted fields) ------------ */
+/* ---------------- CSV parser ---------------- */
 function parseCSV(text) {
   const rows = [];
-  let cur = "", row = [], inQuotes = false;
-  for (let i=0;i<text.length;i++){
+  let cur = "";
+  let row = [];
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
     const c = text[i];
     if (c === '"') {
       if (inQuotes && text[i+1] === '"') { cur += '"'; i++; }
@@ -51,168 +53,124 @@ function parseCSV(text) {
     } else if (c === ',' && !inQuotes) {
       row.push(cur); cur="";
     } else if ((c === '\n' || c === '\r') && !inQuotes) {
-      if (c === '\r' && text[i+1] === '\n') i++;
+      if (c === '\r' && text[i+1]==='\n') i++;
       row.push(cur); rows.push(row); row=[]; cur="";
     } else cur += c;
   }
-  if (cur !== "" || row.length > 0) { row.push(cur); rows.push(row); }
-  return rows.filter(r => r.length > 0 && r.some(cell => cell !== "")); // drop empty trailing rows
+  if (cur!=="" || row.length>0) { row.push(cur); rows.push(row); }
+  return rows.filter(r => r.length>1 || (r.length===1 && r[0].trim()!==""));
 }
 
-/* ------------ normalize Drive link (robust) ------------ */
-function fixDriveLink(url) {
-  if (!url) return null;
-  url = url.trim();
-  if (url.startsWith('"') && url.endsWith('"')) url = url.slice(1,-1);
-  url = url.replace(/&amp;/g,'&');
-  // if it's already a uc?export link, return as-is
-  if (url.includes("drive.google.com/uc?export=view") || url.includes("uc?export=view&id=")) return url;
-  // Typical patterns to extract ID:
-  // /file/d/ID/
-  let m = url.match(/\/d\/([a-zA-Z0-9_-]{10,})/);
-  if (m && m[1]) return `https://drive.google.com/uc?export=view&id=${m[1]}`;
-  // id=ID
-  m = url.match(/[?&]id=([a-zA-Z0-9_-]{10,})/);
-  if (m && m[1]) return `https://drive.google.com/uc?export=view&id=${m[1]}`;
-  // maybe the cell contains only the ID
-  if (/^[a-zA-Z0-9_-]{10,}$/.test(url)) return `https://drive.google.com/uc?export=view&id=${url}`;
-  // fallback: return original url
-  return url;
-}
-
-/* ------------ render logic (auto-detect columns) ------------ */
+/* ---------------- Build leaderboard & gallery ---------------- */
 async function loadAndRender() {
   try {
-    document.getElementById("notice").style.display = "none";
     const res = await fetch(sheetCSV);
-    if (!res.ok) throw new Error("Sheet CSV fetch failed: " + res.status);
-    const raw = await res.text();
-    const rows = parseCSV(raw);
-    if (!rows || rows.length === 0) {
+    if (!res.ok) throw new Error("Sheet CSV fetch failed: "+res.status);
+    const text = await res.text();
+    const rows = parseCSV(text);
+    if (rows.length === 0) {
       document.getElementById("notice").style.display="block";
       document.getElementById("notice").textContent="No submissions yet.";
       return;
     }
 
-    // headers detection
-    const header = rows.shift().map(h => (h||"").toString().trim().toLowerCase());
-    function findIndex(choices, fallback) {
-      for (const c of choices) {
-        const idx = header.findIndex(h => h.includes(c));
-        if (idx >= 0) return idx;
-      }
-      return fallback;
-    }
-    const teamIdx = findIndex(["team","name"], 1);   // default column B
-    const clueIdx = findIndex(["clue","item"], 2);   // default column C
-    const photoIdxGuess = findIndex(["upload","photo","selfie"], -1); // try to find
-    const defaultPhotoIdx = header.length - 1; // default to last column if we can't detect
-    const photoIdx = photoIdxGuess >= 0 ? photoIdxGuess : defaultPhotoIdx;
+    const header = rows.shift().map(h=>h.trim().toLowerCase());
+    const teamIdx = 1; // Column B
+    const clueIdx = 2; // Column C
+    const photoIdx = 4; // Column E (prebuilt links)
 
-    // collect per-team stats
     const teamMap = {};
     const allPhotos = [];
 
-    rows.forEach((r, rowIdx) => {
-      const team = (r[teamIdx] || "").toString().trim();
+    rows.forEach(r=>{
+      const team=(r[teamIdx]||"").trim();
       if (!team) return;
-      const clue = (r[clueIdx] || "").toString().trim();
+      const clue=(r[clueIdx]||"").trim();
+      let photoRaw=(r[photoIdx]||"").trim();
 
-      // Robust photo discovery: prefer detected column, otherwise try to find any cell in row that contains drive.google or http
-      let photoRaw = (r[photoIdx] || "")?.toString().trim();
-      if (!photoRaw) {
-        for (let c = 0; c < r.length; c++) {
-          const cell = (r[c] || "").toString();
-          if (cell.includes("drive.google") || cell.startsWith("http") || cell.includes("uc?export=view")) {
-            photoRaw = r.slice(c).join(",").trim();
-            break;
-          }
-        }
-      }
-
-      if (!teamMap[team]) teamMap[team] = { clues: new Set(), photos: [] };
+      if (!teamMap[team]) teamMap[team]={clues:new Set(), photos:[]};
       if (clue) teamMap[team].clues.add(clue);
       if (photoRaw) {
-        // Auto-detect: if already uc view link, use it; otherwise attempt to extract/convert
-        let fixed = photoRaw.includes("uc?export=view") ? photoRaw : fixDriveLink(photoRaw);
-        teamMap[team].photos.push({ url: fixed, original: photoRaw });
-        allPhotos.push({ team, url: fixed, original: photoRaw, row: rowIdx });
+        teamMap[team].photos.push({url:photoRaw, original:photoRaw});
+        allPhotos.push({team,url:photoRaw,original:photoRaw});
       }
     });
 
-    // build leaderboard array and sort
-    const leaderboard = Object.keys(teamMap).map(team => ({
+    const leaderboard = Object.keys(teamMap).map(team=>({
       team,
       count: teamMap[team].clues.size,
       found: Array.from(teamMap[team].clues).sort(),
       photos: teamMap[team].photos
     }));
-    leaderboard.sort((a,b) => b.count - a.count);
+    leaderboard.sort((a,b)=>b.count - a.count);
 
-    // render table
+    // Render table
     const tbody = document.querySelector("#leaderboard tbody");
-    tbody.innerHTML = "";
-    leaderboard.forEach((row, i) => {
-      const tr = document.createElement("tr");
-      if (i===0) tr.classList.add("first");
-      if (i===1) tr.classList.add("second");
-      if (i===2) tr.classList.add("third");
-      tr.innerHTML = `<td>${i+1} ${i===0?"🏆":i===1?"🥈":i===2?"🥉":""}</td>
-                      <td>${escapeHtml(row.team)}</td>
-                      <td>${row.count}</td>
-                      <td>${escapeHtml(row.found.join(", "))}</td>`;
+    tbody.innerHTML="";
+    leaderboard.forEach((row,i)=>{
+      const tr=document.createElement("tr");
+      if(i===0) tr.classList.add("first");
+      if(i===1) tr.classList.add("second");
+      if(i===2) tr.classList.add("third");
+      tr.innerHTML=`<td>${i+1} ${i===0?"🏆":i===1?"🥈":i===2?"🥉":""}</td>
+                    <td>${escapeHtml(row.team)}</td>
+                    <td>${row.count}</td>
+                    <td>${escapeHtml(row.found.join(", "))}</td>`;
       tbody.appendChild(tr);
     });
 
-    // render photos (newest first)
+    // Render photos (thumbnails)
     const gallery = document.getElementById("photo-gallery");
-    gallery.innerHTML = "";
-    allPhotos.reverse().forEach(p => {
-      const wrapper = document.createElement("div");
-      wrapper.className = "photo-item";
+    gallery.innerHTML="";
+    allPhotos.reverse().forEach(p=>{
+      const wrapper=document.createElement("div");
+      wrapper.className="photo-item";
 
-      const img = document.createElement("img");
-      img.src = p.url;
-      img.alt = `${p.team} - photo`;
+      const thumb=document.createElement("img");
+      thumb.src=p.url;
+      thumb.alt=`${p.team} - photo`;
+      thumb.style.width="150px";
+      thumb.style.height="150px";
+      thumb.style.objectFit="cover";
+      thumb.style.cursor="pointer";
 
-      // click opens the image URL in a new tab (useful for troubleshooting)
-      img.onclick = () => window.open(p.url, "_blank");
+      thumb.onclick = ()=>window.open(p.original,"_blank");
 
-      // on error, hide image and show clickable link to open the URL in a new tab
-      img.onerror = function(e) {
-        img.style.display = "none";
-        const link = document.createElement("a");
-        link.href = p.url || p.original;
-        link.target = "_blank";
-        link.className = "photo-link";
-        link.textContent = "View photo (may require permission)";
+      thumb.onerror=function(){
+        thumb.style.display="none";
+        const link=document.createElement("a");
+        link.href=p.original;
+        link.target="_blank";
+        link.className="photo-link";
+        link.textContent="View photo (may require permission)";
         wrapper.appendChild(link);
-        document.getElementById("notice").style.display = "block";
-        document.getElementById("notice").textContent = "Some photos failed to load — if they don't open in a new tab, set the Drive folder to 'Anyone with the link can view'. See Console for details.";
-        console.error("Image failed to load:", p.url, "original:", p.original, e || "");
+        document.getElementById("notice").style.display="block";
+        document.getElementById("notice").textContent="Some photos failed to load — if they don't open in a new tab, set the Drive folder to 'Anyone with the link can view'.";
       };
 
-      wrapper.appendChild(img);
-      const caption = document.createElement("div");
-      caption.style.marginTop = "6px";
-      caption.style.fontSize = "13px";
-      caption.style.color = "#333";
-      caption.textContent = p.team;
+      wrapper.appendChild(thumb);
+
+      const caption=document.createElement("div");
+      caption.style.marginTop="6px";
+      caption.style.fontSize="13px";
+      caption.style.color="#333";
+      caption.textContent=p.team;
       wrapper.appendChild(caption);
+
       gallery.appendChild(wrapper);
     });
 
   } catch(err) {
-    console.error("Error loading leaderboard:", err);
-    document.getElementById("notice").style.display = "block";
-    document.getElementById("notice").textContent = "Error loading data (see console).";
+    console.error("Error building leaderboard:",err);
+    document.getElementById("notice").style.display="block";
+    document.getElementById("notice").textContent="Error loading data (see console).";
   }
 }
 
 function escapeHtml(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
 loadAndRender();
-setInterval(loadAndRender, 30000);
+setInterval(loadAndRender,30000);
 </script>
 </body>
 </html>
