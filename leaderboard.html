@@ -93,7 +93,7 @@ async function loadAndRender() {
     const header = rows.shift().map(h=>h.trim().toLowerCase());
     const teamIdx = 1; // Column B
     const clueIdx = 2; // Column C
-    const photoIdx = 4; // Column E (force using E)
+    const photoIdx = 4; // Column E (links)
 
     const teamMap = {};
     const allPhotos = [];
@@ -107,7 +107,8 @@ async function loadAndRender() {
       if (!teamMap[team]) teamMap[team]={clues:new Set(), photos:[]};
       if (clue) teamMap[team].clues.add(clue);
       if (photoRaw) {
-        const fixed = fixDriveLink(photoRaw);
+        // Auto-detect: use as-is if already in "uc?export=view" format
+        let fixed = photoRaw.includes("uc?export=view&id=") ? photoRaw : fixDriveLink(photoRaw);
         teamMap[team].photos.push({url:fixed, original:photoRaw});
         allPhotos.push({team,url:fixed,original:photoRaw});
       }
