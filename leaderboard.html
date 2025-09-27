@@ -15,7 +15,7 @@
     .third{ background:#cd7f32 !important; font-weight:bold }
     #photo-gallery { display:flex; flex-wrap:wrap; justify-content:center; gap:12px; margin-top:20px; }
     .photo-item { max-width:200px; text-align:center; }
-    .photo-item img { width:100%; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.15); display:block; }
+    .photo-item img { width:100%; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.15); display:block; cursor:pointer; }
     .photo-link { display:inline-block; margin-top:6px; font-size:12px; color:#333; text-decoration:underline; }
     #notice { color:#b33; margin-top:8px; font-size:14px; }
   </style>
@@ -75,10 +75,10 @@ async function loadAndRender() {
     }
 
     const header = rows.shift().map(h=>h.trim().toLowerCase());
-    const emailIdx = 1; // Column B
-    const teamIdx = 2;  // Column C
-    const clueIdx = 3;  // Column D
-    const photoIdx = 5; // Column F
+    const emailIdx = 0;  // Column A
+    const teamIdx  = 1;  // Column B
+    const clueIdx  = 2;  // Column C
+    const photoIdx = 5;  // Column F (standardized links)
 
     const teamMap = {};
     const allPhotos = [];
@@ -86,22 +86,27 @@ async function loadAndRender() {
     rows.forEach(r=>{
       const email=(r[emailIdx]||"").trim().toLowerCase();
       const teamName=(r[teamIdx]||"").trim();
-      if (!email) return; // skip rows without email (shouldn’t happen)
+      if (!email) return;
       const clue=(r[clueIdx]||"").trim();
       let photoRaw=(r[photoIdx]||"").trim();
 
-      if (!teamMap[email]) teamMap[email]={ name: teamName, clues:new Set(), photos:[] };
-      // Always update to the most recent team name entered
-      if (teamName) teamMap[email].name = teamName;
+      // --- Convert Google Drive links to direct-view ---
+      let photoUrl = photoRaw;
+      const match = photoRaw.match(/[-\w]{25,}/); // extract file ID
+      if (match) {
+        photoUrl = `https://drive.google.com/uc?export=view&id=${match[0]}`;
+      }
+
+      if (!teamMap[email]) teamMap[email]={teamName,clues:new Set(),photos:[]};
       if (clue) teamMap[email].clues.add(clue);
       if (photoRaw) {
-        teamMap[email].photos.push({url:photoRaw, original:photoRaw});
-        allPhotos.push({team: teamMap[email].name, url:photoRaw, original:photoRaw});
+        teamMap[email].photos.push({url:photoUrl, original:photoRaw});
+        allPhotos.push({team:teamName, url:photoUrl, original:photoRaw});
       }
     });
 
     const leaderboard = Object.keys(teamMap).map(email=>({
-      team: teamMap[email].name,
+      team: teamMap[email].teamName,
       count: teamMap[email].clues.size,
       found: Array.from(teamMap[email].clues).sort(),
       photos: teamMap[email].photos
@@ -123,25 +128,21 @@ async function loadAndRender() {
       tbody.appendChild(tr);
     });
 
-    // Render photos (thumbnails)
+    // Render photos
     const gallery = document.getElementById("photo-gallery");
     gallery.innerHTML="";
     allPhotos.reverse().forEach(p=>{
       const wrapper=document.createElement("div");
       wrapper.className="photo-item";
 
-      const thumb=document.createElement("img");
-      thumb.src=p.url;
-      thumb.alt=`${p.team} - photo`;
-      thumb.style.width="150px";
-      thumb.style.height="150px";
-      thumb.style.objectFit="cover";
-      thumb.style.cursor="pointer";
+      const img=document.createElement("img");
+      img.src=p.url;
+      img.alt=`${p.team} - photo`;
 
-      thumb.onclick = ()=>window.open(p.original,"_blank");
+      img.onclick = ()=>window.open(p.original,"_blank");
 
-      thumb.onerror=function(){
-        thumb.style.display="none";
+      img.onerror=function(){
+        img.style.display="none";
         const link=document.createElement("a");
         link.href=p.original;
         link.target="_blank";
@@ -149,10 +150,10 @@ async function loadAndRender() {
         link.textContent="View photo (may require permission)";
         wrapper.appendChild(link);
         document.getElementById("notice").style.display="block";
-        document.getElementById("notice").textContent="Some photos failed to load — if they don't open in a new tab, set the Drive folder to 'Anyone with the link can view'.";
+        document.getElementById("notice").textContent="Some photos failed to load — check Drive folder sharing settings.";
       };
 
-      wrapper.appendChild(thumb);
+      wrapper.appendChild(img);
 
       const caption=document.createElement("div");
       caption.style.marginTop="6px";
