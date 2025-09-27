@@ -1,4 +1,4 @@
-lfies<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -75,32 +75,36 @@ async function loadAndRender() {
     }
 
     const header = rows.shift().map(h=>h.trim().toLowerCase());
-    const teamIdx = 1; // Column B
-    const clueIdx = 2; // Column C
+    const emailIdx = 1; // Column B
+    const teamIdx = 2;  // Column C
+    const clueIdx = 3;  // Column D
     const photoIdx = 4; // Column E (prebuilt links)
 
     const teamMap = {};
     const allPhotos = [];
 
     rows.forEach(r=>{
-      const team=(r[teamIdx]||"").trim();
-      if (!team) return;
+      const email=(r[emailIdx]||"").trim().toLowerCase();
+      const teamName=(r[teamIdx]||"").trim();
+      if (!email) return; // skip rows without email (shouldn’t happen)
       const clue=(r[clueIdx]||"").trim();
       let photoRaw=(r[photoIdx]||"").trim();
 
-      if (!teamMap[team]) teamMap[team]={clues:new Set(), photos:[]};
-      if (clue) teamMap[team].clues.add(clue);
+      if (!teamMap[email]) teamMap[email]={ name: teamName, clues:new Set(), photos:[] };
+      // Always update to the most recent team name entered
+      if (teamName) teamMap[email].name = teamName;
+      if (clue) teamMap[email].clues.add(clue);
       if (photoRaw) {
-        teamMap[team].photos.push({url:photoRaw, original:photoRaw});
-        allPhotos.push({team,url:photoRaw,original:photoRaw});
+        teamMap[email].photos.push({url:photoRaw, original:photoRaw});
+        allPhotos.push({team: teamMap[email].name, url:photoRaw, original:photoRaw});
       }
     });
 
-    const leaderboard = Object.keys(teamMap).map(team=>({
-      team,
-      count: teamMap[team].clues.size,
-      found: Array.from(teamMap[team].clues).sort(),
-      photos: teamMap[team].photos
+    const leaderboard = Object.keys(teamMap).map(email=>({
+      team: teamMap[email].name,
+      count: teamMap[email].clues.size,
+      found: Array.from(teamMap[email].clues).sort(),
+      photos: teamMap[email].photos
     }));
     leaderboard.sort((a,b)=>b.count - a.count);
 
